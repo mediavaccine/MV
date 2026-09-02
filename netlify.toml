@@ -1,0 +1,34 @@
+# Netlify build for the kiosk app.
+#
+# The kiosk is static: no build step, no framework, no dependencies. Publishing
+# the directory directly keeps deploys to a couple of seconds, which matters
+# when a guest list edit needs to reach three screens during an event.
+
+[build]
+  publish = "apps/kiosk"
+
+# Every event URL is the same page; the slug is read from the path at runtime.
+# 200 rather than 301 so the address bar keeps /e/{slug}.
+[[redirects]]
+  from = "/e/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+
+# The guest list is fetched at runtime, so the shell can be cached hard, but
+# never so hard that a fix cannot reach a screen that is already open.
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=300"

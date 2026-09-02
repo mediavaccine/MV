@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Kiosk screens are fixed hardware: lock the viewport so a stray pinch
+     cannot leave the next guest looking at a zoomed-in page. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Find your table</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div id="app" class="app" hidden>
+  <div class="sync" id="sync" title="Data sync status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label"></span></div>
+
+  <!-- Search -->
+  <section class="screen" id="screen-search">
+    <header class="masthead">
+      <img class="logo" id="logo" alt="" hidden>
+      <h1 class="header-text" id="header-text"></h1>
+      <p class="subtitle" id="subtitle"></p>
+    </header>
+
+    <div class="search-field">
+      <span class="search-value" id="search-value"></span>
+      <span class="search-placeholder" id="search-placeholder"></span>
+      <span class="caret" aria-hidden="true"></span>
+    </div>
+
+    <div class="results" id="results" role="listbox" aria-label="Matching guests"></div>
+
+    <p class="no-match" id="no-match" hidden></p>
+
+    <div class="keyboard" id="keyboard" aria-label="On-screen keyboard"></div>
+  </section>
+
+  <!-- Reveal -->
+  <section class="screen reveal" id="screen-reveal" hidden>
+    <p class="reveal-greeting">Welcome,</p>
+    <h2 class="reveal-name" id="reveal-name"></h2>
+    <div class="reveal-table-wrap">
+      <p class="reveal-label">You are seated at</p>
+      <p class="reveal-table" id="reveal-table"></p>
+    </div>
+    <dl class="reveal-extra" id="reveal-extra"></dl>
+    <p class="reveal-tagline" id="reveal-tagline"></p>
+    <button class="done" id="done" type="button">Done</button>
+  </section>
+</div>
+
+<!-- Loading and terminal states, shown before or instead of the app -->
+<div class="boot" id="boot">
+  <p class="boot-text" id="boot-text">Loading…</p>
+</div>
+
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
