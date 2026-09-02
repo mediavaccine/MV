@@ -106,6 +106,52 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Every function pins its search_path
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  v_unpinned text;
+begin
+  select string_agg(p.proname, ', ' order by p.proname)
+  into v_unpinned
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and not exists (
+      -- proconfig entries look like 'search_path=pg_catalog, pg_temp'; compare
+      -- the key exactly rather than with LIKE, where _ is a wildcard.
+      select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) as cfg
+      where split_part(cfg, '=', 1) = 'search_path'
+    );
+
+  assert v_unpinned is null,
+    'SECURITY: every function in public must pin search_path; unpinned: ' || coalesce(v_unpinned, '');
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- The public surface is exactly two functions
+-- ---------------------------------------------------------------------------
+
+do $$
+begin
+  assert has_function_privilege('anon', 'public.event_public_payload(text)', 'execute'),
+    'the kiosk must be able to read its event';
+  assert has_function_privilege('anon',
+    'public.track_usage_event(text, public.usage_event_type, text, uuid, text)', 'execute'),
+    'the kiosk must be able to record interactions';
+
+  assert not has_function_privilege('anon', 'public.is_admin()', 'execute'),
+    'SECURITY: anon must not reach the admin predicate';
+  assert not has_function_privilege('anon', 'public.set_updated_at()', 'execute'),
+    'SECURITY: anon must not reach the trigger helper';
+  assert not has_function_privilege('anon', 'public.filter_jsonb_keys(jsonb, text[])', 'execute'),
+    'SECURITY: anon must not reach the projection helper';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Usage tracking
 -- ---------------------------------------------------------------------------
 
@@ -257,7 +303,9 @@ begin
 end;
 $$;
 
--- updated_at is maintained by trigger, not by the application.
+-- updated_at is maintained by trigger, not by the application. Checked as the
+-- admin role, since that is the only path that actually updates rows and the
+-- trigger helper is no longer executable by everyone.
 do $$
 declare
   v_before timestamptz;
@@ -265,9 +313,14 @@ declare
 begin
   select updated_at into v_before from public.events where slug = 'demo-gala-2026';
   perform pg_sleep(0.05);
+
+  set local role authenticated;
+  set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
   update public.events set name = name || '.' where slug = 'demo-gala-2026';
+  reset role;
+
   select updated_at into v_after from public.events where slug = 'demo-gala-2026';
-  assert v_after > v_before, 'updated_at must advance on UPDATE';
+  assert v_after > v_before, 'updated_at must advance on an admin UPDATE';
 end;
 $$;
 

@@ -8,9 +8,11 @@ to and the Kiosk reads from. No application code yet.
 ```
 supabase/
 ├── migrations/
-│   ├── 20260902120000_init_schema.sql   tables, enums, indexes, triggers
-│   ├── 20260902120100_rls_policies.sql  RLS + the is_admin() predicate
-│   └── 20260902120200_public_api.sql    the two functions the kiosk may call
+│   ├── 20260902120000_init_schema.sql            tables, enums, indexes, triggers
+│   ├── 20260902120100_rls_policies.sql           RLS + the is_admin() predicate
+│   ├── 20260902120200_public_api.sql             the two functions the kiosk may call
+│   ├── 20260902120300_tighten_function_grants.sql  anon reaches only those two
+│   └── 20260902120400_pin_function_search_path.sql pins search_path everywhere
 ├── seed.sql                             one demo event, for local use
 └── tests/
     ├── local_supabase_stub.sql          local stand-in for auth.* and the roles
@@ -28,6 +30,12 @@ Creates a temporary Postgres cluster, applies everything in order, runs
 `verify.sql`, and tears the cluster down. Nothing touches a hosted project.
 Needs the Postgres server binaries (`initdb`, `pg_ctl`) and `psql`, and must run
 as a non-root user — Postgres refuses to start as root.
+
+## Deployment status
+
+All five migrations are applied to the pilot project `MEDIA VACCIE PILOT PROJECT`
+(`kcxrnuyackbdnmjjisfa`). `seed.sql` was **not** applied there — the hosted
+database holds the schema and no rows.
 
 ## Applying to a hosted project
 
@@ -83,6 +91,44 @@ invalid event type, which is a client bug worth hearing about.
 **A guest id is validated against its event.** Passing a guest from another
 event records the interaction with a null `guest_id` rather than a cross-event
 link, so the public endpoint cannot be used to probe for ids.
+
+## Supabase advisories
+
+`get_advisors(type: security)` reports no errors. Seven warnings remain, all of
+the same two kinds, and all expected:
+
+- **`SECURITY DEFINER` function is callable by `anon`** — for
+  `event_public_payload` and `track_usage_event` this *is* the architecture. The
+  kiosk has no login, so its two entry points must be reachable without one.
+  Switching them to `SECURITY INVOKER`, as the linter suggests, would break the
+  kiosk outright: an invoker-rights function would run with anon's privileges,
+  and anon deliberately has none on any table.
+- **`SECURITY DEFINER` function is callable by `authenticated`** — same two
+  functions, plus `is_admin()`. The admin app's RLS policies evaluate
+  `is_admin()` as the querying user, so `authenticated` must be able to execute
+  it.
+
+Two warnings name `public.rls_auto_enable()`, which is **not part of this
+schema**. It predates these migrations: a DDL event trigger, owned by
+`postgres`, that enables RLS automatically on any new table created in `public`.
+It is a useful safety net and has been left untouched. It is `SECURITY DEFINER`
+and currently executable by `anon` and `authenticated`; calling it outside an
+event-trigger context errors, so the exposure is theoretical, but
+`revoke execute on function public.rls_auto_enable() from public, anon, authenticated;`
+would silence both warnings if you want it locked down.
+
+## Notes on Supabase defaults
+
+Two of its defaults work against a deny-by-default posture, and both are
+handled in the migrations:
+
+- New tables in `public` are granted to `anon` and `authenticated`
+  automatically. Migration `..0100` revokes the `anon` grants. **Any table added
+  later needs the same revoke**, or the kiosk role silently gains access to it.
+- New functions are granted `EXECUTE` to `anon`, on top of PostgreSQL's own
+  `EXECUTE`-to-`PUBLIC` default. Both sources have to be revoked; removing one
+  leaves the other. Migration `..0300` does this, and `verify.sql` asserts the
+  resulting surface so a regression fails the test run.
 
 ## Still open
 
