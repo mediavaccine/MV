@@ -7,8 +7,6 @@
 --   * jsonb columns are constrained to objects, so callers never have to defend
 --     against a bare string or array turning up where a map is expected
 
-create extension if not exists pg_trgm;
-
 -- ---------------------------------------------------------------------------
 -- Enumerated types
 -- ---------------------------------------------------------------------------
@@ -126,8 +124,10 @@ create index guests_event_id_idx on public.guests (event_id);
 -- Supports the alphabetical ordering the kiosk payload is built with.
 create index guests_event_name_idx on public.guests (event_id, lower(full_name));
 
--- Supports fuzzy name lookup in the admin guest editor.
-create index guests_full_name_trgm_idx on public.guests using gin (full_name gin_trgm_ops);
+-- Prefix search in the admin guest editor is served by the index above. Fuzzy
+-- ("did you mean") matching would want pg_trgm, deliberately not installed
+-- until something actually needs it — on Supabase an extension in the public
+-- schema raises a security advisory.
 
 create trigger guests_set_updated_at
   before update on public.guests
