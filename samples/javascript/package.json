@@ -1,0 +1,13 @@
+{
+  "name": "mv-javascript-samples",
+  "version": "1.0.0",
+  "description": "Standalone JavaScript samples with no runtime dependencies.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
