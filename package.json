@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Seating kiosk and Control Center for Media Vaccine events.",
   "private": true,
-  "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "bash scripts/build.sh",
     "test": "bash tests/run.sh",
