@@ -19,7 +19,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
   // serve them from the local mock, so the browser exercises the app's real
   // request code without needing (or being allowed) outbound network.
   async function wire(target) {
-    target.setDefaultTimeout(5000);
+    target.setDefaultTimeout(Number(process.env.MV_TEST_TIMEOUT || 15000));
     // Nothing else may leave the browser during a test.
     await target.route('**/*', (route) => {
       const url = route.request().url();

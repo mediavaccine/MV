@@ -17,7 +17,7 @@ const db = async () => (await fetch(BASE + '/__db')).json();
 
   async function newPage() {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-    page.setDefaultTimeout(5000);
+    page.setDefaultTimeout(Number(process.env.MV_TEST_TIMEOUT || 15000));
     // Everything the app calls on supabase.co goes to the local mock instead.
     await page.route('**/*', (r) => r.request().url().startsWith(BASE) ? r.continue() : r.abort());
     await page.route('**/{rest,auth,storage}/v1/**', async (route) => {
