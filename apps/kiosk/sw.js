@@ -9,7 +9,11 @@
  * The admin app is deliberately excluded: it must never be served stale.
  */
 
-const VERSION = 'kiosk-v1';
+// Bump this whenever a cached file changes in a way a screen must not miss.
+// activate() deletes every cache that is not the current version, so a new
+// name forces the shell to be refetched on the next load rather than served
+// stale once more.
+const VERSION = 'kiosk-v2';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/config.js'];
 
 self.addEventListener('install', (event) => {
