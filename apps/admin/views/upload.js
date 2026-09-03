@@ -303,10 +303,24 @@ export async function renderUpload(container, event, onImported) {
           }, {}),
         });
 
+        // Record which extra columns this file brought, or Branding has no way
+        // to offer them and the promise made in step 2 — that extra data can be
+        // shown on the kiosk — cannot be kept. Columns already known keep their
+        // label and visibility; new ones arrive hidden, per spec §8.
+        const knownFields = (((event.extra_field_schema || {}).fields) || [])
+          .filter((field) => field && field.key);
+        const knownKeys = new Set(knownFields.map((field) => field.key));
+        const discovered = state.mapping
+          .filter((entry) => entry.role === 'extra' && entry.header)
+          .map((entry) => entry.header)
+          .filter((key) => !knownKeys.has(key))
+          .map((key) => ({ key, label: key, visible: false }));
+
         // Keep the event's own defaults in step with what was just done.
         await api.updateEvent(event.id, {
           assignment_strategy: state.strategy,
           table_count: state.tableCount,
+          extra_field_schema: { fields: knownFields.concat(discovered) },
         });
 
         toast(`Imported ${state.assigned.length} guests.`, 'ok');

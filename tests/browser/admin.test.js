@@ -242,6 +242,19 @@ const db = async () => (await fetch(BASE + '/__db')).json();
     const ada = (await db()).guests.find((g) => g.full_name === 'Ada Smith');
     assert.deepEqual(ada.extra, { Meal: 'Beef' });
   });
+  await check('the import records its extra columns so Branding can offer them', async () => {
+    // Regression: extra data was stored on each guest but never registered on
+    // the event, so Branding reported "no extra columns" and there was no way
+    // to ever show one on the kiosk.
+    const event = (await db()).events.find((e) => e.slug === 'demo-gala-2026');
+    const fields = (event.extra_field_schema || {}).fields || [];
+    const meal = fields.find((f) => f.key === 'Meal');
+    assert.ok(meal, `Meal was not registered: ${JSON.stringify(fields)}`);
+    assert.equal(meal.visible, false, 'a newly discovered field must arrive hidden');
+    // Fields that already existed keep the visibility the operator chose.
+    const existing = fields.find((f) => f.key === 'meal');
+    assert.ok(existing && existing.visible === true, 'an existing field lost its setting');
+  });
 
   console.log('\nBranding');
   await check('the preview reflects an edited header immediately', async () => {

@@ -70,7 +70,9 @@ export function renderBranding(container, event) {
   // the database and never reaches a screen).
   function schemaRows() {
     if (schema.fields.length === 0) {
-      return h('p', { class: 'muted' }, 'No extra columns yet — they appear here after a CSV upload.');
+      return h('p', { class: 'muted' },
+        'No extra columns on this event yet. Any column mapped as "Extra data" '
+        + 'during a CSV upload appears here, hidden until you tick it.');
     }
     return h('div', {}, schema.fields.map((entry) => {
       const tick = h('input', { type: 'checkbox', checked: !!entry.visible, onchange: () => {
