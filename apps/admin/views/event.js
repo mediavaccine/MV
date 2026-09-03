@@ -15,11 +15,21 @@ const TABS = [
 ];
 
 export async function renderEvent(container, slug, tab, navigate) {
-  // Rendering is async, so a slow fetch can finish after the user has already
-  // moved on — and then paint the old screen over the new one. Anything that
-  // resolves for a route we have left is dropped.
-  const requestedHash = window.location.hash;
-  const stillCurrent = () => window.location.hash === requestedHash;
+  const active = TABS.some(([id]) => id === tab) ? tab : 'guests';
+
+  // Rendering is async, and a render can also be triggered by something that
+  // finished late — saving, archiving — long after the operator moved on.
+  // Comparing against the hash this render *started* with is not enough: a
+  // reload fired after navigation captures the new hash while still carrying
+  // the old tab, and would paint that tab over the current screen. So compare
+  // against the route this render actually draws.
+  const base = '#/events/' + encodeURIComponent(slug);
+  const stillCurrent = () => {
+    const live = window.location.hash;
+    return live === base + '/' + active || (active === 'guests' && live === base);
+  };
+
+  if (!stillCurrent()) return;
 
   mount(container, spinner('Loading event…'));
 
@@ -34,7 +44,6 @@ export async function renderEvent(container, slug, tab, navigate) {
   if (!event) return mount(container, empty('No event with that slug.'));
 
   const panel = h('div', { class: 'panel' });
-  const active = TABS.some(([id]) => id === tab) ? tab : 'guests';
 
   function reload() { renderEvent(container, slug, active, navigate); }
 
@@ -66,7 +75,7 @@ export async function renderEvent(container, slug, tab, navigate) {
 
   switch (active) {
     case 'upload': return renderUpload(panel, event, () => navigate(`/events/${slug}/guests`));
-    case 'branding': return renderBranding(panel, event, reload);
+    case 'branding': return renderBranding(panel, event);
     case 'screens': return renderKiosks(panel, event);
     case 'analytics': return renderAnalytics(panel, event);
     default: return renderGuests(panel, event);

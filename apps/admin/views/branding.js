@@ -18,7 +18,7 @@ const TEXT_FIELDS = [
   ['reveal_tagline', 'Reveal tagline', 'Shown under the table number'],
 ];
 
-export function renderBranding(container, event, onSaved) {
+export function renderBranding(container, event) {
   const branding = Object.assign({
     primary_color: '#1f6feb', accent_color: '#f0b429', background_color: '#0b0d12',
     font: 'inter', header_text: event.name, subtitle_text: 'Find your table',
@@ -110,8 +110,12 @@ export function renderBranding(container, event, onSaved) {
     save.disabled = true;
     try {
       await api.updateEvent(event.id, { branding, extra_field_schema: schema });
+      // Deliberately no re-render: the form already shows exactly what was
+      // saved, and a reload landing after the operator navigates would paint
+      // this tab over whatever they moved to.
+      event.branding = branding;
+      event.extra_field_schema = schema;
       toast('Branding saved. Kiosks pick it up within two minutes.', 'ok');
-      onSaved();
     } catch (error) {
       toast(error.message, 'error');
     } finally { save.disabled = false; }
