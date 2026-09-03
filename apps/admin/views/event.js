@@ -15,14 +15,22 @@ const TABS = [
 ];
 
 export async function renderEvent(container, slug, tab, navigate) {
+  // Rendering is async, so a slow fetch can finish after the user has already
+  // moved on — and then paint the old screen over the new one. Anything that
+  // resolves for a route we have left is dropped.
+  const requestedHash = window.location.hash;
+  const stillCurrent = () => window.location.hash === requestedHash;
+
   mount(container, spinner('Loading event…'));
 
   let event;
   try {
     event = await api.getEvent(slug);
   } catch (error) {
+    if (!stillCurrent()) return;
     return mount(container, empty('Could not load the event: ' + error.message));
   }
+  if (!stillCurrent()) return;
   if (!event) return mount(container, empty('No event with that slug.'));
 
   const panel = h('div', { class: 'panel' });
