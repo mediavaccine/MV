@@ -2,15 +2,21 @@ import * as api from '../api.js';
 import { button, confirmDialog, empty, field, formatDate, h, mount, slugify, spinner, toast } from '../ui.js';
 
 export async function renderEvents(container, navigate) {
+  // See renderEvent: a render that resolves after the route changed must not
+  // paint over whatever replaced it.
+  const requestedHash = window.location.hash;
+  const stillCurrent = () => window.location.hash === requestedHash;
+
   mount(container, spinner('Loading events…'));
 
   let events;
   try {
     events = await api.listEvents();
   } catch (error) {
-    mount(container, empty('Could not load events: ' + error.message));
+    if (stillCurrent()) mount(container, empty('Could not load events: ' + error.message));
     return;
   }
+  if (!stillCurrent()) return;
 
   const live = events.filter((e) => e.status === 'active');
   const archived = events.filter((e) => e.status !== 'active');
