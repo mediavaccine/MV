@@ -259,6 +259,33 @@ const db = async () => (await fetch(BASE + '/__db')).json();
     await page.waitForSelector('.toast--ok');
     assert.equal((await db()).events.find((e) => e.slug === 'demo-gala-2026').branding.header_text, 'Gala Night');
   });
+  await check('navigating while a save is in flight is not overwritten by it', async () => {
+    // Regression: the save handler re-rendered its own tab when it finished.
+    // Landing after a navigation, that painted Branding over the new screen —
+    // the hash said one thing and the panel showed another.
+    await open(page, '#/events/demo-gala-2026/branding', '.preview-title');
+
+    let release;
+    const held = new Promise((resolve) => { release = resolve; });
+    await page.route('**/rest/v1/events?id=eq.*', async (route) => {
+      await held;                       // hold the save open
+      // fallback(), not continue(): continue() goes to the real network, which
+      // is not reachable here — fallback() defers to the mock handler.
+      await route.fallback();
+    });
+
+    await page.click('.form-actions .btn--primary');
+    await page.waitForTimeout(200);
+    await open(page, '#/events/demo-gala-2026/screens', '.url-row');
+    release();
+    await page.waitForTimeout(800);     // let the held save land
+
+    assert.equal(await page.locator('.url-row').count() > 0, true,
+      'the Screens view was replaced by the late save');
+    assert.equal(await page.locator('.preview-title').count(), 0,
+      'Branding painted over Screens');
+    await page.unroute('**/rest/v1/events?id=eq.*');
+  });
 
   console.log('\nScreens');
   await check('the kiosk URL is shown and taggable screens are listed', async () => {
