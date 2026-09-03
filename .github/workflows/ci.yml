@@ -16,10 +16,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql postgresql-client
       - name: Apply migrations and assert the guarantees
-        # Runs as the postgres user: the server refuses to start as root.
+        # Runs as the postgres user, because the server refuses to start as
+        # root. Copied out of the workspace first: making the files readable is
+        # not enough when the runner's home directory is not traversable by
+        # another user.
         run: |
-          sudo chmod -R a+rX "$GITHUB_WORKSPACE"
-          sudo -u postgres env PATH="$PATH" bash supabase/tests/run-local.sh
+          sudo cp -r supabase /tmp/mv-supabase
+          sudo chown -R postgres:postgres /tmp/mv-supabase
+          sudo -u postgres env PATH="$PATH" bash /tmp/mv-supabase/tests/run-local.sh
 
   unit:
     name: Shared logic
