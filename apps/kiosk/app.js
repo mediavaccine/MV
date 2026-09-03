@@ -74,7 +74,10 @@
   // --- Supabase ----------------------------------------------------------
 
   function rpc(name, body) {
-    return fetch(CONFIG.supabaseUrl + '/rest/v1/rpc/' + name, {
+    // The slug rides along in the query string purely so the service worker can
+    // cache one payload per event; PostgREST ignores it.
+    var suffix = body && body.p_slug ? '?slug=' + encodeURIComponent(body.p_slug) : '';
+    return fetch(CONFIG.supabaseUrl + '/rest/v1/rpc/' + name + suffix, {
       method: 'POST',
       headers: {
         'apikey': CONFIG.supabaseKey,
@@ -491,6 +494,18 @@
         .catch(function () { setSync('stale', 'Reconnecting…'); });
     }, 120000);
   }
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    // Offline support is a bonus, never a prerequisite: a failed registration
+    // (unsupported browser, insecure origin, blocked by policy) must not stop
+    // a screen from working normally.
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function () {});
+    });
+  }
+
+  registerServiceWorker();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

@@ -6,18 +6,23 @@ on:
   pull_request:
 
 jobs:
-  python:
+  database:
+    name: Database schema and policies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m pip install --upgrade pip pytest
-      - run: python -m pytest tests
-        working-directory: samples/python
+      - name: Install PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-client
+      - name: Apply migrations and assert the guarantees
+        # Runs as the postgres user: the server refuses to start as root.
+        run: |
+          sudo chmod -R a+rX "$GITHUB_WORKSPACE"
+          sudo -u postgres env PATH="$PATH" bash supabase/tests/run-local.sh
 
-  javascript:
+  unit:
+    name: Shared logic
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,13 +30,32 @@ jobs:
         with:
           node-version: '20'
       - run: npm test
-        working-directory: samples/javascript
+        working-directory: packages/shared
 
-  bash:
+  browser:
+    name: Kiosk and Control Center
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check syntax
-        run: bash -n samples/bash/summarize-logs.sh
-      - name: Run against the example log
-        run: bash samples/bash/summarize-logs.sh samples/bash/example.log
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright with Chromium
+        run: npm install --no-audit --no-fund playwright && npx playwright install --with-deps chromium
+      - name: Build and run the browser suites
+        # Playwright's own Chromium, rather than the pinned path used locally.
+        run: MV_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" bash tests/run.sh
+
+  build:
+    name: Build output
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build.sh
+      - name: Check the published tree is complete
+        run: |
+          for file in index.html app.js styles.css config.js sw.js manifest.webmanifest \
+                      shared/csv.js admin/index.html admin/app.js admin/shared/csv.js; do
+            test -f "dist/$file" || { echo "missing dist/$file"; exit 1; }
+          done
+          echo "dist looks complete"

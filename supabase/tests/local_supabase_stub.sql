@@ -18,7 +18,23 @@ language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
 
+-- Supabase's storage schema, reduced to what the migrations touch.
+create schema if not exists storage;
+create table storage.buckets (
+  id text primary key,
+  name text not null,
+  public boolean not null default false
+);
+create table storage.objects (
+  id uuid primary key default gen_random_uuid(),
+  bucket_id text references storage.buckets (id),
+  name text not null,
+  owner uuid
+);
+alter table storage.objects enable row level security;
+
 grant usage on schema public to anon, authenticated, service_role;
+grant usage on schema storage to anon, authenticated, service_role;
 grant usage on schema auth to anon, authenticated, service_role;
 
 -- Supabase grants these by default on everything created in `public`. Mirrored

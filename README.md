@@ -1,55 +1,80 @@
-# MV
+# Seating Kiosk
 
-Sample code for this repository — small, self-contained programs that run as
-they are, each with tests or a worked example.
-
-Nothing here depends on a network service or on a package registry beyond the
-test runners themselves, so every sample can be run immediately after cloning.
+Guests find their table on a touchscreen at the door; Media Vaccine manages
+events, guest lists and branding from a browser. Guest data lives in a database
+and is fetched at runtime, so updating a list never means editing code or
+regenerating a URL.
 
 ## What's here
 
-| Sample | Language | What it shows |
-| --- | --- | --- |
-| [`samples/python/wordfreq.py`](samples/python/wordfreq.py) | Python 3.9+ | Text tokenizing and word counting, exposed both as a library and as an `argparse` CLI, with a pytest suite. |
-| [`samples/javascript/task-queue.js`](samples/javascript/task-queue.js) | Node 18+ | A promise queue with a concurrency limit, written with private class fields and covered by `node --test`. |
-| [`samples/bash/summarize-logs.sh`](samples/bash/summarize-logs.sh) | Bash 4+ | A defensive shell script: strict mode, option parsing, temp-file cleanup via an `EXIT` trap, and text processing with the standard toolchain. |
+```
+apps/kiosk/        the public screen guests use          → /
+apps/admin/        the Control Center (single login)     → /admin
+packages/shared/   CSV parsing and table assignment
+supabase/          schema, RLS policies, public API, tests
+scripts/build.sh   assembles both apps into dist/
+tests/             browser suites for both apps
+```
 
-## Running everything
+Both apps are plain HTML, CSS and JavaScript — no framework and no bundler. The
+only build step copies files into `dist/`, because a publish directory cannot
+import from outside itself and both apps share the CSV and assignment modules.
+
+## Running it
 
 ```bash
-# Python
-cd samples/python && python3 -m pytest tests
-
-# JavaScript
-cd samples/javascript && npm test
-
-# Bash
-bash samples/bash/summarize-logs.sh samples/bash/example.log
+bash scripts/build.sh        # assemble dist/
+bash tests/run.sh            # browser suites for both apps
+bash supabase/tests/run-local.sh   # migrations + database guarantees
+(cd packages/shared && npm test)   # CSV and assignment unit tests
 ```
 
-Each sample directory has its own README with usage details.
+`tests/run.sh` needs Node 18+, Python 3 and Playwright's Chromium;
+`supabase/tests/run-local.sh` needs the PostgreSQL server binaries and must run
+as a non-root user.
 
-## Layout
+## The access model
 
-```
-samples/
-├── python/
-│   ├── wordfreq.py
-│   └── tests/test_wordfreq.py
-├── javascript/
-│   ├── task-queue.js
-│   ├── package.json
-│   └── test/task-queue.test.js
-└── bash/
-    ├── summarize-logs.sh
-    └── example.log
-```
+Two entirely separate paths into the same database.
 
-## Adding a sample
+**The kiosk has no login** and is granted nothing on any table. Its whole
+surface is two `SECURITY DEFINER` functions: one returns the branding and guest
+list for an active event, the other records an interaction. Putting the boundary
+in functions rather than table policies is what lets the database choose *which
+columns* leave it — RLS filters rows, never columns, so a plain `select` grant
+on `guests` would hand out every extra field, phone numbers included.
 
-Keep new samples in the spirit of the existing ones:
+**The Control Center** authenticates through Supabase Auth and queries tables
+directly. Every table has RLS demanding `public.is_admin()`, which checks the
+caller against an allow-list. A user who signs in but is not on that list is
+refused at the door rather than shown an empty dashboard.
 
-1. One idea per sample, small enough to read in a sitting.
-2. No runtime dependencies where the standard library will do.
-3. Tests, or a runnable example with expected output.
-4. A short README entry explaining what the sample demonstrates.
+Both apps ship a Supabase publishable key in plain sight. That is safe by
+design: the key identifies the project and authorises nothing on its own.
+
+## URLs
+
+| URL | What it is |
+| --- | --- |
+| `/e/{event-slug}` | The kiosk for one event |
+| `/e/{event-slug}?k=main` | Same page and data; the tag only separates entrances in analytics |
+| `/admin` | The Control Center |
+
+## Documentation
+
+- [`apps/kiosk/README.md`](apps/kiosk/README.md) — how the kiosk behaves, and the traps worth knowing before editing it
+- [`apps/admin/README.md`](apps/admin/README.md) — the Control Center, screen by screen
+- [`supabase/README.md`](supabase/README.md) — schema, policies, advisories and Supabase defaults that work against a deny-by-default posture
+
+## Known limits
+
+- **The full guest list is public to anyone holding the slug.** A deliberate
+  trade: the kiosk caches the whole list so it survives a network drop. Hidden
+  extra fields stay hidden; the names do not.
+- **CSV merge matches on exact names.** "Bob" and "Robert" are different people
+  as far as it is concerned. Replace mode is the safer default.
+- **Excel files are not supported** — export the sheet as CSV first.
+- **No rate limiting** on the public tracking endpoint yet; that belongs at the
+  edge rather than in Postgres.
+- **Any table added later needs an explicit `revoke ... from anon`**, or
+  Supabase's default privileges hand the kiosk role access to it.

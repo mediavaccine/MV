@@ -1,0 +1,11 @@
+{
+  "name": "Seating Kiosk",
+  "short_name": "Kiosk",
+  "description": "Find your table",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12"
+}

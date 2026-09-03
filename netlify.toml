@@ -1,17 +1,28 @@
-# Netlify build for the kiosk app.
+# Netlify build for both apps.
 #
-# The kiosk is static: no build step, no framework, no dependencies. Publishing
-# the directory directly keeps deploys to a couple of seconds, which matters
-# when a guest list edit needs to reach three screens during an event.
+# One site serves both: the kiosk at the root and the Control Center under
+# /admin. The build assembles dist/ because a publish directory cannot import
+# from outside itself, and both apps share the CSV and assignment modules.
+#
+# Moving the Control Center to its own subdomain later means a second Netlify
+# site pointed at the same repo with a different publish directory; nothing in
+# the app code assumes it lives at /admin.
 
 [build]
-  publish = "apps/kiosk"
+  command = "bash scripts/build.sh"
+  publish = "dist"
 
 # Every event URL is the same page; the slug is read from the path at runtime.
 # 200 rather than 301 so the address bar keeps /e/{slug}.
 [[redirects]]
   from = "/e/*"
   to = "/index.html"
+  status = 200
+
+# The admin app routes on the hash, so every path under /admin is one document.
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
   status = 200
 
 [[headers]]
@@ -21,7 +32,14 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "no-referrer"
 
-# The guest list is fetched at runtime, so the shell can be cached hard, but
+# The admin app is not for the public and must never be indexed or embedded.
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+
+# The guest list is fetched at runtime, so the shell can be cached briefly —
 # never so hard that a fix cannot reach a screen that is already open.
 [[headers]]
   for = "/*.css"
@@ -32,3 +50,9 @@
   for = "/*.js"
   [headers.values]
     Cache-Control = "public, max-age=300"
+
+# A stale service worker would pin an old build in place indefinitely.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

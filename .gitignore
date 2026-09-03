@@ -18,3 +18,8 @@ npm-debug.log*
 # Build output
 dist/
 build/
+
+# Build output assembled by scripts/build.sh
+dist/
+node_modules/
+package-lock.json
