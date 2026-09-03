@@ -36,6 +36,16 @@ class Handler(BaseHTTPRequestHandler):
         if STATE['offline']:
             self._send(503, json.dumps({'error': 'simulated outage'}))
             return
+
+        # PostgREST reads query parameters on an RPC call as filters and rejects
+        # anything it does not recognise. Mimic that: accepting a stray
+        # parameter here once hid a bug that broke every request in production.
+        if '?' in self.path:
+            self._send(400, json.dumps({
+                'code': 'PGRST100',
+                'message': 'unexpected query parameter on rpc call: ' + self.path.split('?', 1)[1],
+            }))
+            return
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length) or b'{}')
 

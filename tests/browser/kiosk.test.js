@@ -27,8 +27,11 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
     });
     await target.route('**/rest/v1/rpc/**', async (route) => {
       const request = route.request();
-      const name = new URL(request.url()).pathname.split('/').pop();
-      const response = await fetch(`${BASE}/rest/v1/rpc/${name}`, {
+      // Forward the URL exactly as the app built it, query string included.
+      // Rebuilding it from the pathname alone hid a stray parameter that
+      // PostgREST rejects.
+      const sent = new URL(request.url());
+      const response = await fetch(`${BASE}${sent.pathname}${sent.search}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: request.postData() || '{}',
@@ -227,6 +230,25 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
     await p.goto(BASE + '/', { waitUntil: 'networkidle' });
     assert.match(await p.textContent('#boot-text'), /\/e\/your-event-name/);
     await p.close();
+  });
+
+  console.log('\nRequest shape');
+  await check('the payload request carries no query string', async () => {
+    // Regression: a slug was appended to the URL so the service worker could
+    // key its cache. PostgREST rejects unrecognised query parameters on an RPC
+    // call, so this broke every guest-list fetch in production.
+    const urls = [];
+    const watcher = await browser.newPage({ viewport: { width: 1080, height: 1440 }, serviceWorkers: 'block' });
+    watcher.on('request', (r) => { if (r.url().includes('/rpc/')) urls.push(r.url()); });
+    await wire(watcher);
+    await watcher.goto(KIOSK_URL, { waitUntil: 'networkidle' });
+    await watcher.keyboard.type('ada');
+    await watcher.waitForTimeout(1600);
+    await watcher.close();
+
+    assert.ok(urls.length > 0, 'no RPC requests were made');
+    const dirty = urls.filter((u) => u.includes('?'));
+    assert.deepEqual(dirty, [], 'RPC URLs must have no query string');
   });
 
   console.log('\nOffline shell (PWA)');

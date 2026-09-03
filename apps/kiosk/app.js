@@ -74,10 +74,11 @@
   // --- Supabase ----------------------------------------------------------
 
   function rpc(name, body) {
-    // The slug rides along in the query string purely so the service worker can
-    // cache one payload per event; PostgREST ignores it.
-    var suffix = body && body.p_slug ? '?slug=' + encodeURIComponent(body.p_slug) : '';
-    return fetch(CONFIG.supabaseUrl + '/rest/v1/rpc/' + name + suffix, {
+    // Nothing may be added to this URL. PostgREST reads query parameters on an
+    // RPC call as filters on the result and rejects anything it does not
+    // recognise, so a stray parameter fails every request. The service worker
+    // derives its cache key from the request body instead.
+    return fetch(CONFIG.supabaseUrl + '/rest/v1/rpc/' + name, {
       method: 'POST',
       headers: {
         'apikey': CONFIG.supabaseKey,
