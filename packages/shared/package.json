@@ -1,0 +1,9 @@
+{
+  "name": "@mv/shared",
+  "version": "1.0.0",
+  "description": "Logic shared by the kiosk and admin apps: CSV parsing and table assignment.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test" }
+}
