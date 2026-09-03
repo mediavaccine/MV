@@ -55,7 +55,19 @@ const db = async () => (await fetch(BASE + '/__db')).json();
 
   async function open(page, hash, anchor) {
     await page.goto(ADMIN + hash, { waitUntil: 'networkidle' });
-    await page.waitForSelector(anchor);
+    try {
+      await page.waitForSelector(anchor);
+    } catch (error) {
+      // Say what was on screen instead, so a failure here is diagnosable from
+      // a CI log rather than only reproducible locally.
+      const seen = await page.evaluate(() => ({
+        hash: location.hash,
+        toast: (document.getElementById('toast') || {}).textContent || '',
+        panel: ((document.querySelector('.panel') || {}).innerText || '').slice(0, 300),
+        root: ((document.querySelector('.root') || {}).innerText || '').slice(0, 300),
+      })).catch(() => ({}));
+      throw new Error(`${anchor} never appeared. state=${JSON.stringify(seen)}`);
+    }
   }
 
   async function signIn(page, password = 'correct-horse') {
