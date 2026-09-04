@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2] / 'dist'
 PAYLOAD = json.loads(Path(sys.argv[2]).read_text())
+ORIGINAL_GUESTS = list(PAYLOAD['guests'])
 TRACKED = []
 STATE = {'offline': False}
 
@@ -70,6 +71,24 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith('/__offline/'):
             STATE['offline'] = self.path.endswith('/1')
             self._send(200, json.dumps({'offline': STATE['offline']}))
+            return
+        # Pad the guest list so a test can reach behaviour that only shows on a
+        # list far larger than the fixture, such as the cap on results.
+        if self.path.startswith('/__guests/'):
+            want = int(self.path.rsplit('/', 1)[1])
+            if want:
+                # Every name starts with the same letter, so a one-key search
+                # matches exactly `want` guests and the cap is easy to reason
+                # about from the test.
+                PAYLOAD['guests'] = [{
+                    'id': '00000000-0000-4000-8000-%012d' % i,
+                    'name': 'Olamide Padding %d' % i,
+                    'table': 'Table %d' % (i % 9 + 1),
+                    'extra': {},
+                } for i in range(want)]
+            else:
+                PAYLOAD['guests'] = list(ORIGINAL_GUESTS)
+            self._send(200, json.dumps({'guests': len(PAYLOAD['guests'])}))
             return
 
         path = self.path.split('?')[0]

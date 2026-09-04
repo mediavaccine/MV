@@ -13,7 +13,7 @@
 // activate() deletes every cache that is not the current version, so a new
 // name forces the shell to be refetched on the next load rather than served
 // stale once more.
-const VERSION = 'kiosk-v4';
+const VERSION = 'kiosk-v5';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/config.js'];
 
 self.addEventListener('install', (event) => {

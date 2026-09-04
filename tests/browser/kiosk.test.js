@@ -5,9 +5,10 @@ const BASE = process.env.MV_TEST_BASE || 'http://127.0.0.1:8898';
 const KIOSK_URL = BASE + '/e/demo-gala-2026?k=main';  // not `URL`: that shadows the global
 
 let passed = 0;
+let failed = 0;
 async function check(name, fn) {
   try { await fn(); console.log('  ok   ' + name); passed++; }
-  catch (e) { console.log('  FAIL ' + name + '\n       ' + e.message); process.exitCode = 1; }
+  catch (e) { console.log('  FAIL ' + name + '\n       ' + e.message); failed++; process.exitCode = 1; }
 }
 
 const tracked = async () => (await fetch(BASE + '/__tracked')).json();
@@ -159,6 +160,37 @@ async function enterSearch(page) {
     await page.keyboard.type(' B');
     assert.equal(await page.textContent('#search-value'), 'A B');
   });
+  // A kiosk shows no scrollbar, so a row sliced off by the edge of the band is
+  // the only clue that more names exist — and it reads as a rendering fault.
+  await check('a list longer than the band fades to show there is more', async () => {
+    await page.click('.key:text-is("Clear")');
+    await page.click('.key:text-is("O")');
+    await page.waitForSelector('.result');
+    assert.ok(await page.locator('.result').count() >= 3, 'need enough matches to overflow');
+    assert.equal(await page.getAttribute('.results', 'data-more') !== null, true,
+      'the fade must be on while names are hidden below the fold');
+
+    await page.evaluate(() => { const r = document.querySelector('.results'); r.scrollTop = r.scrollHeight; });
+    await page.waitForFunction(() => !document.querySelector('.results').hasAttribute('data-more'));
+    assert.equal(await page.getAttribute('.results', 'data-more'), null,
+      'the last name must not be left faded once the list is scrolled to the end');
+  });
+  // The list is capped at 40; beyond that the guest is told to keep typing.
+  await check('the overflow hint counts in plain English', async () => {
+    const load = async (n) => {
+      await fetch(BASE + '/__guests/' + n);
+      await page.reload({ waitUntil: 'networkidle' });
+      await enterSearch(page);
+      await page.click('.key:text-is("O")');
+      await page.waitForSelector('.result');
+      return page.textContent('.results > .no-match');
+    };
+    assert.match(await load(41), /Keep typing — 1 more name matches\./);
+    assert.match(await load(45), /Keep typing — 5 more names match\./);
+    await fetch(BASE + '/__guests/0');
+    await page.reload({ waitUntil: 'networkidle' });
+    await enterSearch(page);
+  });
   await check('no match shows the branded message', async () => {
     await page.click('.key:text-is("Clear")');
     await page.keyboard.type('zzzz');
@@ -181,6 +213,13 @@ async function enterSearch(page) {
   });
   await check('a visible extra field is shown on the reveal', async () => {
     assert.match(await page.textContent('#reveal-extra'), /Fish/);
+  });
+  // The organiser names the column in the Control Center; showing the raw CSV
+  // header instead ("meal Fish") is what a guest used to be given.
+  await check('the extra field is shown under its configured label', async () => {
+    const text = await page.textContent('#reveal-extra');
+    assert.match(text, /Meal choice/);
+    assert.doesNotMatch(text, /\bmeal\b/);
   });
   await check('the hidden field never reaches the browser at all', async () => {
     const html = await page.content();
@@ -338,5 +377,7 @@ async function enterSearch(page) {
   });
 
   await browser.close();
-  console.log(`\n${passed} checks passed.`);
+  // Reporting a pass count alone once let a red run read as green.
+  if (failed) console.log(`\n${passed} passed, ${failed} FAILED.`);
+  else console.log(`\n${passed} checks passed.`);
 })();
