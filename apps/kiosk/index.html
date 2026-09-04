@@ -6,55 +6,112 @@
      cannot leave the next guest looking at a zoomed-in page. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Find your table</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b0d12">
+<title>Find your table</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
+<!-- The stage holds the chosen aspect ratio. Everything scales to it, so the
+     same design fits a portrait totem, a landscape screen or a tablet. -->
 <div id="app" class="app" hidden>
-  <div class="sync" id="sync" title="Data sync status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label"></span></div>
+  <div class="stage" id="stage">
+    <div class="stage-inner">
 
-  <!-- Search -->
-  <section class="screen" id="screen-search">
-    <header class="masthead">
-      <img class="logo" id="logo" alt="" hidden>
-      <h1 class="header-text" id="header-text"></h1>
-      <p class="subtitle" id="subtitle"></p>
-    </header>
+      <div class="sync" id="sync"><span class="sync-dot"></span><span id="sync-label"></span></div>
 
-    <div class="search-field">
-      <span class="search-value" id="search-value"></span>
-      <span class="search-placeholder" id="search-placeholder"></span>
-      <span class="caret" aria-hidden="true"></span>
+      <!-- Ornamental frame, drawn per theme -->
+      <svg class="ornament ornament--tl" viewBox="0 0 60 60" aria-hidden="true"><use href="#flourish"></use></svg>
+      <svg class="ornament ornament--tr" viewBox="0 0 60 60" aria-hidden="true"><use href="#flourish"></use></svg>
+      <svg class="ornament ornament--bl" viewBox="0 0 60 60" aria-hidden="true"><use href="#flourish"></use></svg>
+      <svg class="ornament ornament--br" viewBox="0 0 60 60" aria-hidden="true"><use href="#flourish"></use></svg>
+      <div class="frame-rule" aria-hidden="true"></div>
+
+      <!-- 1. Attract screen -->
+      <section class="screen screen--welcome" id="screen-welcome" hidden>
+        <img class="brand-logo" id="welcome-logo" alt="" hidden>
+        <p class="kicker" id="welcome-kicker"></p>
+        <h1 class="display" id="welcome-title"></h1>
+        <div class="rule" aria-hidden="true"><span></span><svg viewBox="0 0 24 24" class="rule-mark"><use href="#diamond"></use></svg><span></span></div>
+        <div class="hero" id="welcome-hero" hidden><img id="welcome-hero-img" alt=""></div>
+        <button class="cta" id="welcome-cta" type="button">
+          <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#tap"></use></svg>
+          <span id="welcome-cta-text"></span>
+        </button>
+        <p class="note" id="welcome-note"></p>
+      </section>
+
+      <!-- 2. Search -->
+      <section class="screen screen--search" id="screen-search" hidden>
+        <header class="masthead">
+          <img class="brand-logo brand-logo--sm" id="search-logo" alt="" hidden>
+          <h2 class="display display--sm" id="search-title"></h2>
+          <div class="rule" aria-hidden="true"><span></span><svg viewBox="0 0 24 24" class="rule-mark"><use href="#diamond"></use></svg><span></span></div>
+          <p class="kicker" id="search-kicker"></p>
+        </header>
+
+        <div class="field">
+          <span class="field-value" id="search-value"></span>
+          <span class="field-placeholder" id="search-placeholder"></span>
+          <span class="caret" aria-hidden="true"></span>
+        </div>
+
+        <div class="results" id="results" role="listbox" aria-label="Matching guests"></div>
+        <p class="no-match" id="no-match" hidden></p>
+        <div class="keyboard" id="keyboard" aria-label="On-screen keyboard"></div>
+      </section>
+
+      <!-- 3. Reveal -->
+      <section class="screen screen--reveal" id="screen-reveal" hidden>
+        <h2 class="script" id="reveal-title"></h2>
+        <div class="crest" id="crest">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><use href="#crest-ring"></use></svg>
+          <span class="crest-text" id="crest-text"></span>
+        </div>
+        <p class="guest-name" id="reveal-name"></p>
+        <p class="kicker" id="reveal-seated-label"></p>
+        <p class="table-number" id="reveal-table"></p>
+        <dl class="extras" id="reveal-extra"></dl>
+        <p class="note" id="reveal-tagline"></p>
+        <button class="ghost" id="done" type="button">
+          <svg class="ghost-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#back"></use></svg>
+          <span id="done-text">Search again</span>
+        </button>
+      </section>
+
     </div>
-
-    <div class="results" id="results" role="listbox" aria-label="Matching guests"></div>
-
-    <p class="no-match" id="no-match" hidden></p>
-
-    <div class="keyboard" id="keyboard" aria-label="On-screen keyboard"></div>
-  </section>
-
-  <!-- Reveal -->
-  <section class="screen reveal" id="screen-reveal" hidden>
-    <p class="reveal-greeting">Welcome,</p>
-    <h2 class="reveal-name" id="reveal-name"></h2>
-    <div class="reveal-table-wrap">
-      <p class="reveal-label">You are seated at</p>
-      <p class="reveal-table" id="reveal-table"></p>
-    </div>
-    <dl class="reveal-extra" id="reveal-extra"></dl>
-    <p class="reveal-tagline" id="reveal-tagline"></p>
-    <button class="done" id="done" type="button">Done</button>
-  </section>
+  </div>
 </div>
 
-<!-- Loading and terminal states, shown before or instead of the app -->
-<div class="boot" id="boot">
-  <p class="boot-text" id="boot-text">Loading…</p>
-</div>
+<div class="boot" id="boot"><p class="boot-text" id="boot-text">Loading…</p></div>
+
+<!-- Ornaments are inline so they render with no network: the kiosk must look
+     right on a cold start with the wifi down. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="flourish" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round">
+    <!-- Corner rule -->
+    <path d="M3 3h26" /><path d="M3 3v26" />
+    <!-- Sweeping stem into the frame -->
+    <path d="M3 17C22 17 38 30 43 52" opacity=".9"/>
+    <path d="M17 3C17 22 30 38 52 43" opacity=".9"/>
+    <!-- Leaves along each stem -->
+    <path d="M14 15c5-4 11-3 14 1-5 4-11 3-14-1z" opacity=".75"/>
+    <path d="M15 14c-4 5-3 11 1 14 4-5 3-11-1-14z" opacity=".75"/>
+    <path d="M28 30c6-3 12-1 15 4-6 3-12 1-15-4z" opacity=".6"/>
+    <path d="M30 28c-3 6-1 12 4 15 3-6 1-12-4-15z" opacity=".6"/>
+    <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none" opacity=".9"/>
+    <circle cx="49" cy="49" r="1.2" fill="currentColor" stroke="none" opacity=".55"/>
+  </g>
+  <path id="diamond" d="M12 2l3.2 8.8L24 14l-8.8 3.2L12 26l-3.2-8.8L0 14l8.8-3.2z" fill="currentColor"/>
+  <g id="crest-ring" fill="none" stroke="currentColor" stroke-width="1.2">
+    <circle cx="60" cy="60" r="52" opacity=".55"/>
+    <circle cx="60" cy="60" r="46" opacity=".9"/>
+    <path d="M60 8v10M60 102v10M8 60h10M102 60h10" opacity=".7"/>
+  </g>
+  <path id="tap" fill="currentColor" d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11h.5a3.5 3.5 0 0 1 3.5 3.5V19a3 3 0 0 1-3 3h-3a4 4 0 0 1-3.4-1.9l-2.4-4a1.4 1.4 0 0 1 2.1-1.8L8 15.6V11z"/>
+  <path id="back" fill="currentColor" d="M11 5 4 12l7 7v-4h9v-6h-9z"/>
+</defs></svg>
 
 <script src="/config.js"></script>
 <script src="/app.js"></script>

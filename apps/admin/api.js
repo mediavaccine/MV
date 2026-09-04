@@ -177,7 +177,9 @@ export async function insertGuests(rows, onProgress) {
 }
 
 export function updateGuestsTable(ids, tableNumber) {
-  const list = ids.map((id) => `"${id}"`).join(',');
+  // No quoting: a UUID never contains a comma, and a mis-parsed quoted value
+  // would match no rows and silently reassign nobody.
+  const list = ids.join(',');
   return request(`/rest/v1/guests?id=in.(${list})`, {
     method: 'PATCH', body: { table_number: tableNumber },
   });

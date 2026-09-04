@@ -9,7 +9,11 @@
  * The admin app is deliberately excluded: it must never be served stale.
  */
 
-const VERSION = 'kiosk-v1';
+// Bump this whenever a cached file changes in a way a screen must not miss.
+// activate() deletes every cache that is not the current version, so a new
+// name forces the shell to be refetched on the next load rather than served
+// stale once more.
+const VERSION = 'kiosk-v3';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/config.js'];
 
 self.addEventListener('install', (event) => {
@@ -54,12 +58,13 @@ self.addEventListener('fetch', (event) => {
 
 async function networkThenCache(request) {
   const cache = await caches.open(VERSION);
+  const key = await cacheKeyFor(request);
   try {
     const response = await fetch(request.clone());
-    if (response.ok) cache.put(cacheKeyFor(request), response.clone());
+    if (response.ok) cache.put(key, response.clone());
     return response;
   } catch (error) {
-    const cached = await cache.match(cacheKeyFor(request));
+    const cached = await cache.match(key);
     if (cached) return cached;
     throw error;
   }
@@ -80,9 +85,21 @@ async function cacheThenNetwork(request) {
 }
 
 /* The payload is fetched with POST, which the Cache API will not store as a
- * key. Rewrite it to a GET on a synthetic URL that includes the slug, so each
- * event caches separately. */
-function cacheKeyFor(request) {
-  const url = new URL(request.url);
-  return new Request(url.origin + '/__cached-payload' + url.search, { method: 'GET' });
+ * key. Rewrite it to a GET on a synthetic URL carrying the slug, so each event
+ * caches separately.
+ *
+ * The slug comes from the request body. It must not be added to the request
+ * URL: PostgREST rejects unrecognised query parameters on an RPC call, which
+ * would break every fetch this worker is meant to be caching. */
+async function cacheKeyFor(request) {
+  let slug = 'unknown';
+  try {
+    const body = await request.clone().json();
+    if (body && body.p_slug) slug = String(body.p_slug);
+  } catch (error) {
+    /* Unreadable body: fall back to a shared key rather than failing. */
+  }
+  return new Request(
+    self.location.origin + '/__cached-payload?slug=' + encodeURIComponent(slug),
+    { method: 'GET' });
 }
