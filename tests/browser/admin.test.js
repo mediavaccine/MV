@@ -258,25 +258,48 @@ const db = async () => (await fetch(BASE + '/__db')).json();
 
   console.log('\nBranding');
   await check('the preview reflects an edited header immediately', async () => {
-    await open(page, '#/events/demo-gala-2026/branding', '.preview-title');
-    await page.fill('.card input[type=text] >> nth=3', 'Gala Night');
-    assert.match(await page.textContent('.preview-title'), /Gala Night/);
+    await open(page, '#/events/demo-gala-2026/branding', '.preview-frame');
+    await page.fill('input[name="branding.welcome_title"]', 'Gala Night');
+    assert.match(await page.textContent('.preview-display'), /Gala Night/);
   });
   await check('extra fields show which are visible to the kiosk', async () => {
     const rows = await page.locator('.schema-row').allTextContents();
     assert.ok(rows.some((r) => /meal/.test(r) && /shown on the kiosk/.test(r)));
     assert.ok(rows.some((r) => /phone/.test(r) && /never shown/.test(r)));
   });
+  await check('the screen shape drives the preview and is saved', async () => {
+    // The point of the control is that the shape is visible, not described.
+    const portrait = await page.getAttribute('.preview-frame', 'style');
+    // The browser serialises 9/16 as "0.5625 / 1", so match the ratio value
+    // rather than the text that was written.
+    assert.match(portrait, /aspect-ratio:\s*0\.56/,
+      `expected a portrait frame, got: ${portrait}`);
+
+    await page.selectOption('select[name="branding.aspect_ratio"]', '16:9');
+    const landscape = await page.getAttribute('.preview-frame', 'style');
+    assert.notEqual(landscape, portrait, 'the preview shape did not change');
+    assert.match(landscape, /aspect-ratio:\s*1\.77/,
+      `expected a landscape frame, got: ${landscape}`);
+
+    await page.selectOption('select[name="branding.theme"]', 'ivory');
+    await page.selectOption('select[name="branding.aspect_ratio"]', '9:16');
+  });
+  await check('the reveal preview shows a monogram derived from the name', async () => {
+    await page.click('.preview-tabs .tab >> nth=2');
+    await page.waitForSelector('.preview-crest');
+    assert.equal((await page.textContent('.preview-crest')).trim(), 'G');
+    await page.click('.preview-tabs .tab >> nth=0');
+  });
   await check('saving branding persists it', async () => {
     await page.click('.form-actions .btn--primary');
     await page.waitForSelector('.toast--ok');
-    assert.equal((await db()).events.find((e) => e.slug === 'demo-gala-2026').branding.header_text, 'Gala Night');
+    assert.equal((await db()).events.find((e) => e.slug === 'demo-gala-2026').branding.welcome_title, 'Gala Night');
   });
   await check('navigating while a save is in flight is not overwritten by it', async () => {
     // Regression: the save handler re-rendered its own tab when it finished.
     // Landing after a navigation, that painted Branding over the new screen —
     // the hash said one thing and the panel showed another.
-    await open(page, '#/events/demo-gala-2026/branding', '.preview-title');
+    await open(page, '#/events/demo-gala-2026/branding', '.preview-frame');
 
     let release;
     const held = new Promise((resolve) => { release = resolve; });
@@ -295,7 +318,7 @@ const db = async () => (await fetch(BASE + '/__db')).json();
 
     assert.equal(await page.locator('.url-row').count() > 0, true,
       'the Screens view was replaced by the late save');
-    assert.equal(await page.locator('.preview-title').count(), 0,
+    assert.equal(await page.locator('.preview-frame').count(), 0,
       'Branding painted over Screens');
     await page.unroute('**/rest/v1/events?id=eq.*');
   });

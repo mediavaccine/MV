@@ -12,6 +12,14 @@ async function check(name, fn) {
 
 const tracked = async () => (await fetch(BASE + '/__tracked')).json();
 
+// The kiosk now opens on an attract screen; search is one tap in.
+async function enterSearch(page) {
+  if (await page.isVisible('#screen-welcome')) {
+    await page.click('#welcome-cta');
+    await page.waitForSelector('#screen-search:visible');
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.MV_CHROMIUM || '/opt/pw-browsers/chromium' });
 
@@ -55,18 +63,29 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
   console.log('\nLoad and branding');
   await page.goto(KIOSK_URL, { waitUntil: 'networkidle' });
 
-  await check('app is visible, boot screen gone', async () => {
+  await check('the kiosk opens on the welcome screen', async () => {
     assert.equal(await page.isVisible('#app'), true);
     assert.equal(await page.isVisible('#boot'), false);
+    assert.equal(await page.isVisible('#screen-welcome'), true);
+    assert.equal(await page.isVisible('#screen-search'), false);
   });
-  await check('branding header and subtitle come from the payload', async () => {
-    assert.equal(await page.textContent('#header-text'), 'Demo Gala 2026');
-    assert.equal(await page.textContent('#subtitle'), 'Find your table');
+  await check('branding drives the welcome and search headings', async () => {
+    assert.equal(await page.textContent('#welcome-title'), 'Demo Gala 2026');
+    await enterSearch(page);
+    assert.equal(await page.textContent('#search-title'), 'Demo Gala 2026');
+    assert.equal(await page.textContent('#search-kicker'), 'Find your table');
   });
-  await check('branding colours are applied as CSS variables', async () => {
+  await check('the theme is applied to the stage', async () => {
+    const theme = await page.getAttribute('html', 'data-theme');
+    assert.ok(theme, 'no theme was applied');
     const bg = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--background').trim());
-    assert.equal(bg, '#0b0d12');
+      getComputedStyle(document.documentElement).getPropertyValue('--bg-1').trim());
+    assert.equal(bg, '#0b0d12', 'an explicit background colour should still win');
+  });
+  await check('the stage carries the configured aspect ratio', async () => {
+    const ratio = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--ratio').trim());
+    assert.equal(ratio, '9 / 16');
   });
   await check('placeholder text comes from branding', async () => {
     assert.equal(await page.textContent('#search-placeholder'), 'Start typing your name');
@@ -77,6 +96,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
 
   console.log('\nSearch');
   await check('tapping keys filters the list', async () => {
+    await enterSearch(page);
     for (const k of ['A', 'D']) await page.click(`.key:text-is("${k}")`);
     await page.waitForSelector('.result');
     // "ad" matches the start of a first name and the start of a surname; both
@@ -143,12 +163,16 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
   await check('the branded tagline is shown', async () => {
     assert.match(await page.textContent('#reveal-tagline'), /celebrate with you/i);
   });
-  await check('Done returns to a cleared search screen', async () => {
+  await check('Done returns to the welcome screen with the query cleared', async () => {
+    // A totem sits on its attract screen between guests, so the next person
+    // never walks up to the previous one's result.
     await page.click('#done');
-    await page.waitForSelector('#screen-search:visible');
+    await page.waitForSelector('#screen-welcome:visible');
     assert.equal(await page.textContent('#search-value'), '');
+    await enterSearch(page);
   });
   await check('a guest with no table gets a fallback, not a blank', async () => {
+    await enterSearch(page);
     await page.keyboard.type('hakeem');
     await page.click('.result');
     await page.waitForSelector('#screen-reveal:visible');
@@ -165,6 +189,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
     assert.equal(reveal.p_kiosk_param, 'main');
   });
   await check('a fruitless search is tracked as no_match', async () => {
+    await enterSearch(page);
     await page.keyboard.type('qqqq');
     await page.waitForTimeout(1500);
     const rows = await tracked();
@@ -172,6 +197,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
   });
   await check('keystrokes are debounced into one row, not one per letter', async () => {
     await fetch(BASE + '/__reset');
+    await enterSearch(page);
     await page.click('.key:text-is("Clear")');
     await page.keyboard.type('adaeze oko');      // 10 keystrokes
     await page.waitForTimeout(1600);
@@ -181,13 +207,14 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
   });
 
   console.log('\nIdle reset');
-  await check('the screen returns to search on its own', async () => {
+  await check('the screen returns to the attract loop on its own', async () => {
     await page.evaluate(() => { window.KIOSK_CONFIG.idleResetMs = 700; });
+    await enterSearch(page);
     await page.click('.key:text-is("Clear")');
     await page.keyboard.type('ade');
     await page.click('.result');
     await page.waitForSelector('#screen-reveal:visible');
-    await page.waitForSelector('#screen-search:visible', { timeout: 4000 });
+    await page.waitForSelector('#screen-welcome:visible', { timeout: 6000 });
     assert.equal(await page.textContent('#search-value'), '');
   });
 
@@ -199,6 +226,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
     await wire(offlinePage);
     await offlinePage.goto(KIOSK_URL, { waitUntil: 'networkidle' });
     assert.equal(await offlinePage.isVisible('#app'), true, 'app did not render from cache');
+    await enterSearch(offlinePage);
     await offlinePage.keyboard.type('bukki');
     await offlinePage.waitForSelector('.result');
     assert.deepEqual(await offlinePage.locator('.result-name').allTextContents(), ['Bukki Solanke']);
@@ -242,6 +270,7 @@ const tracked = async () => (await fetch(BASE + '/__tracked')).json();
     watcher.on('request', (r) => { if (r.url().includes('/rpc/')) urls.push(r.url()); });
     await wire(watcher);
     await watcher.goto(KIOSK_URL, { waitUntil: 'networkidle' });
+    await enterSearch(watcher);
     await watcher.keyboard.type('ada');
     await watcher.waitForTimeout(1600);
     await watcher.close();

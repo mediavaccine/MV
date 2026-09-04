@@ -14,6 +14,19 @@
   var CONFIG = window.KIOSK_CONFIG || {};
   var CACHE_PREFIX = 'kiosk:event:';
 
+  // Stage shapes offered per event. "fill" simply takes the whole screen, for
+  // hardware already cut to the right proportion.
+  var RATIOS = {
+    '9:16': '9 / 16',   // portrait totem — the usual event display
+    '3:4':  '3 / 4',
+    '1:1':  '1 / 1',
+    '4:3':  '4 / 3',
+    '16:9': '16 / 9',   // landscape screen
+    'fill': null,
+  };
+
+  var THEMES = ['midnight', 'ivory', 'emerald', 'blush', 'noir'];
+
   var FONT_STACKS = {
     inter: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     system: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -37,6 +50,7 @@
     idleTimer: null,
     searchTrackTimer: null,
     lastTrackedQuery: '',
+    welcomeEnabled: true,
   };
 
   var el = {};
@@ -141,24 +155,81 @@
 
   function applyBranding(branding) {
     var b = branding || {};
-    var root = document.documentElement.style;
+    var root = document.documentElement;
+    var style = root.style;
+    var eventName = (state.payload.event && state.payload.event.name) || '';
 
-    if (b.primary_color) root.setProperty('--primary', b.primary_color);
-    if (b.accent_color) root.setProperty('--accent', b.accent_color);
-    if (b.background_color) root.setProperty('--background', b.background_color);
-    if (b.font && FONT_STACKS[b.font]) root.setProperty('--font', FONT_STACKS[b.font]);
+    // Theme first, so any explicit colour below overrides the preset.
+    root.setAttribute('data-theme', THEMES.indexOf(b.theme) >= 0 ? b.theme : 'midnight');
+    root.setAttribute('data-ornament', b.ornament === 'none' ? 'none' : 'botanical');
 
-    setText(el.headerText, b.header_text || (state.payload.event && state.payload.event.name) || '');
-    setText(el.subtitle, b.subtitle_text || 'Find your table');
-    setText(el.searchPlaceholder, b.search_placeholder || 'Start typing your name');
-    setText(el.revealTagline, b.reveal_tagline || '');
-
-    if (b.logo_url) {
-      el.logo.src = b.logo_url;
-      el.logo.hidden = false;
+    var ratio = Object.prototype.hasOwnProperty.call(RATIOS, b.aspect_ratio)
+      ? b.aspect_ratio : '9:16';
+    if (ratio === 'fill') {
+      el.stage.setAttribute('data-fill', 'true');
+    } else {
+      el.stage.removeAttribute('data-fill');
+      style.setProperty('--ratio', RATIOS[ratio]);
     }
 
-    document.title = b.header_text || (state.payload.event && state.payload.event.name) || 'Find your table';
+    // Legacy per-colour overrides still win, so an event branded before the
+    // themes existed keeps the colours it was given.
+    if (b.background_color) { style.setProperty('--bg-1', b.background_color); style.setProperty('--bg-2', b.background_color); }
+    if (b.accent_color) style.setProperty('--gold', b.accent_color);
+    if (b.primary_color) style.setProperty('--gold-soft', b.primary_color);
+    if (b.font && FONT_STACKS[b.font]) style.setProperty('--ui', FONT_STACKS[b.font]);
+
+    // --- Welcome ---
+    var welcomeOn = b.welcome_enabled !== false;
+    state.welcomeEnabled = welcomeOn;
+    setText(el.welcomeKicker, b.welcome_kicker || 'Welcome to');
+    setText(el.welcomeTitle, b.welcome_title || b.header_text || eventName);
+    setText(el.welcomeCtaText, b.welcome_cta || 'Tap here to find your seat');
+    setText(el.welcomeNote, b.welcome_note || '');
+    el.welcomeNote.hidden = !(b.welcome_note || '');
+
+    if (b.hero_image_url) {
+      el.welcomeHeroImg.src = b.hero_image_url;
+      el.welcomeHero.hidden = false;
+    } else {
+      el.welcomeHero.hidden = true;
+    }
+
+    // --- Search ---
+    setText(el.searchTitle, b.search_title || b.header_text || eventName || 'Find your seat');
+    setText(el.searchKicker, b.subtitle_text || 'Search by your name');
+    setText(el.searchPlaceholder, b.search_placeholder || 'Type your name here');
+
+    // --- Reveal ---
+    setText(el.revealTitle, b.reveal_title || "Here's your table");
+    setText(el.revealSeatedLabel, b.reveal_seated_label || 'You are seated at');
+    setText(el.revealTagline, b.reveal_tagline || '');
+    el.revealTagline.hidden = !(b.reveal_tagline || '');
+    setText(el.doneText, b.search_again_text || 'Search again');
+
+    var monogram = b.monogram || initialsFrom(b.welcome_title || eventName);
+    setText(el.crestText, monogram);
+    el.crest.hidden = !monogram;
+
+    if (b.logo_url) {
+      el.welcomeLogo.src = b.logo_url;
+      el.searchLogo.src = b.logo_url;
+      el.welcomeLogo.hidden = false;
+      el.searchLogo.hidden = false;
+    }
+
+    document.title = b.welcome_title || b.header_text || eventName || 'Find your table';
+  }
+
+  /* "Zarina & Robert" becomes Z&R; a one-word name keeps its first letter. */
+  function initialsFrom(text) {
+    var words = String(text || '').split(/\s*&\s*|\s+and\s+/i);
+    if (words.length > 1) {
+      return words.map(function (w) { return (w.trim()[0] || '').toUpperCase(); })
+        .filter(Boolean).join('&');
+    }
+    var first = String(text || '').trim()[0];
+    return first ? first.toUpperCase() : '';
   }
 
   // --- Search ------------------------------------------------------------
@@ -286,23 +357,42 @@
       el.revealExtra.appendChild(row);
     });
 
-    el.screenSearch.hidden = true;
-    el.screenReveal.hidden = false;
+    showOnly(el.screenReveal);
     track('reveal', { guestId: guest.id });
     resetIdleTimer();
   }
 
-  function showSearch() {
-    el.screenReveal.hidden = true;
-    el.screenSearch.hidden = false;
+  function showOnly(node) {
+    [el.screenWelcome, el.screenSearch, el.screenReveal].forEach(function (screen) {
+      screen.hidden = screen !== node;
+    });
   }
 
-  function resetToStart() {
+  function showSearch() {
+    showOnly(el.screenSearch);
+  }
+
+  /* Wipe what has been typed but stay on the search screen. This is the Clear
+   * key: a guest correcting a typo must not be thrown back to the attract
+   * screen mid-word. */
+  function clearQuery() {
     state.query = '';
     state.matches = [];
     state.lastTrackedQuery = '';
     renderResults();
     showSearch();
+    el.results.scrollTop = 0;
+  }
+
+  /* Return to the top of the flow, ready for the next guest. With a welcome
+   * screen that is the attract loop; without one it is the search screen,
+   * because a kiosk must never sit on the previous guest's result. */
+  function resetToStart() {
+    state.query = '';
+    state.matches = [];
+    state.lastTrackedQuery = '';
+    renderResults();
+    showOnly(state.welcomeEnabled ? el.screenWelcome : el.screenSearch);
     el.results.scrollTop = 0;
   }
 
@@ -319,6 +409,9 @@
   // --- Input -------------------------------------------------------------
 
   function typeCharacter(character) {
+    if (!state.payload) return;
+    // A guest who starts typing at the attract screen means to search.
+    if (el.screenSearch.hidden) showSearch();
     if (state.query.length >= 40) return;
     state.query += character;
     afterInput();
@@ -363,7 +456,7 @@
 
     var lastRow = document.createElement('div');
     lastRow.className = 'keyboard-row';
-    lastRow.appendChild(makeKey('Clear', 'key key--wide', resetToStart));
+    lastRow.appendChild(makeKey('Clear', 'key key--wide', clearQuery));
     lastRow.appendChild(makeKey('Space', 'key key--space', function () { typeCharacter(' '); }));
     lastRow.appendChild(makeKey('⌫', 'key key--wide', backspace));
     fragment.appendChild(lastRow);
@@ -390,7 +483,7 @@
     window.addEventListener('keydown', function (event) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === 'Backspace') { event.preventDefault(); backspace(); return; }
-      if (event.key === 'Escape') { resetToStart(); return; }
+      if (event.key === 'Escape') { clearQuery(); return; }
       if (event.key.length === 1 && /[a-z0-9 '\-]/i.test(event.key)) {
         // Space and Enter activate whichever button holds focus, so a physical
         // space right after tapping a key would fire that key a second time —
@@ -435,14 +528,22 @@
 
   function boot() {
     el = {
-      app: $('app'), boot: $('boot'), bootText: $('boot-text'),
-      screenSearch: $('screen-search'), screenReveal: $('screen-reveal'),
-      headerText: $('header-text'), subtitle: $('subtitle'), logo: $('logo'),
+      app: $('app'), boot: $('boot'), bootText: $('boot-text'), stage: $('stage'),
+      screenWelcome: $('screen-welcome'), screenSearch: $('screen-search'),
+      screenReveal: $('screen-reveal'),
+      welcomeLogo: $('welcome-logo'), welcomeKicker: $('welcome-kicker'),
+      welcomeTitle: $('welcome-title'), welcomeHero: $('welcome-hero'),
+      welcomeHeroImg: $('welcome-hero-img'), welcomeCta: $('welcome-cta'),
+      welcomeCtaText: $('welcome-cta-text'), welcomeNote: $('welcome-note'),
+      searchLogo: $('search-logo'), searchTitle: $('search-title'),
+      searchKicker: $('search-kicker'),
       searchValue: $('search-value'), searchPlaceholder: $('search-placeholder'),
       results: $('results'), noMatch: $('no-match'), keyboard: $('keyboard'),
-      revealName: $('reveal-name'), revealTable: $('reveal-table'),
-      revealExtra: $('reveal-extra'), revealTagline: $('reveal-tagline'),
-      done: $('done'), sync: $('sync'), syncLabel: $('sync-label'),
+      revealTitle: $('reveal-title'), crest: $('crest'), crestText: $('crest-text'),
+      revealName: $('reveal-name'), revealSeatedLabel: $('reveal-seated-label'),
+      revealTable: $('reveal-table'), revealExtra: $('reveal-extra'),
+      revealTagline: $('reveal-tagline'), done: $('done'), doneText: $('done-text'),
+      sync: $('sync'), syncLabel: $('sync-label'),
     };
 
     state.slug = readRoute();
@@ -456,6 +557,9 @@
     buildKeyboard();
     bindPhysicalKeyboard();
     el.done.addEventListener('click', resetToStart);
+    // The whole attract screen is the target, not just the button: a guest
+    // reaches for the middle of a totem, not a specific pill.
+    el.screenWelcome.addEventListener('click', showSearch);
     ['click', 'touchstart', 'keydown'].forEach(function (name) {
       window.addEventListener(name, resetIdleTimer, { passive: true });
     });
