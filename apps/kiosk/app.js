@@ -308,12 +308,26 @@
       fragment.appendChild(buildResultRow(shown[i], query));
     }
     if (state.matches.length > shown.length) {
+      var hidden = state.matches.length - shown.length;
       var more = document.createElement('p');
       more.className = 'no-match';
-      setText(more, 'Keep typing — ' + (state.matches.length - shown.length) + ' more names match.');
+      setText(more, 'Keep typing — ' + hidden
+        + (hidden === 1 ? ' more name matches.' : ' more names match.'));
       fragment.appendChild(more);
     }
     el.results.appendChild(fragment);
+    markOverflow();
+  }
+
+  /* A row sliced off by the edge of the band, with no scrollbar on a kiosk,
+     just looks broken — and a guest cannot tell there are more names below.
+     The fade is dropped again the moment the list is scrolled to the end, so
+     the last name is never the one that is hard to read. */
+  function markOverflow() {
+    var list = el.results;
+    var more = list.scrollTop + list.clientHeight < list.scrollHeight - 1;
+    if (more) list.setAttribute('data-more', 'true');
+    else list.removeAttribute('data-more');
   }
 
   function buildResultRow(guest, query) {
@@ -557,6 +571,7 @@
     buildKeyboard();
     bindPhysicalKeyboard();
     el.done.addEventListener('click', resetToStart);
+    el.results.addEventListener('scroll', markOverflow, { passive: true });
     // The whole attract screen is the target, not just the button: a guest
     // reaches for the middle of a totem, not a specific pill.
     el.screenWelcome.addEventListener('click', showSearch);

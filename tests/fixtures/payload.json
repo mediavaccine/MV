@@ -1,1 +1,91 @@
-{"event": {"name": "Demo Gala 2026", "slug": "demo-gala-2026"}, "guests": [{"id": "6444ff2a-bf08-4fed-af4f-20375fb9202b", "name": "Adaeze Okonkwo", "extra": {"meal": "Vegetarian"}, "table": "Table 1"}, {"id": "76ed1f76-c349-4661-958d-ffddcdcfa3d8", "name": "Bukki Solanke", "extra": {"meal": "Fish"}, "table": "Head Table"}, {"id": "e0564f2a-6a4a-4f7f-a489-65a52b9ae685", "name": "Chidi Nwosu", "extra": {"meal": "Beef"}, "table": "Table 2"}, {"id": "6674f6cf-e803-4a92-9e0a-f251ade3bbff", "name": "Damilola Adeyemi", "extra": {"meal": "Vegetarian"}, "table": "Table 2"}, {"id": "ae1c9811-796f-4d2d-b853-a9de5d526e34", "name": "Emeka Obi", "extra": {"meal": "Fish"}, "table": "VIP-A"}, {"id": "8c13a721-6487-4c36-8ce2-40304e1cba0f", "name": "Folake Balogun", "extra": {}, "table": "Table 3"}, {"id": "b91152e2-0d7e-4bc2-b4a2-5e663475d7a6", "name": "Grace Mensah", "extra": {"meal": "Beef"}, "table": "Table 3"}, {"id": "c0782ffc-c48d-4276-9ed6-6c6453292e10", "name": "Hakeem Yusuf", "extra": {}, "table": null}], "branding": {"font": "inter", "header_text": "Demo Gala 2026", "accent_color": "#f0b429", "no_match_text": "We could not find that name — please see a host.", "primary_color": "#1f6feb", "subtitle_text": "Find your table", "reveal_tagline": "We cannot wait to celebrate with you!", "background_color": "#0b0d12", "search_placeholder": "Start typing your name"}, "synced_at": "2026-09-02T22:30:21.231482+00:00"}
+{
+  "event": {
+    "name": "Demo Gala 2026",
+    "slug": "demo-gala-2026"
+  },
+  "guests": [
+    {
+      "id": "6444ff2a-bf08-4fed-af4f-20375fb9202b",
+      "name": "Adaeze Okonkwo",
+      "extra": {
+        "meal": "Vegetarian"
+      },
+      "table": "Table 1"
+    },
+    {
+      "id": "76ed1f76-c349-4661-958d-ffddcdcfa3d8",
+      "name": "Bukki Solanke",
+      "extra": {
+        "meal": "Fish"
+      },
+      "table": "Head Table"
+    },
+    {
+      "id": "e0564f2a-6a4a-4f7f-a489-65a52b9ae685",
+      "name": "Chidi Nwosu",
+      "extra": {
+        "meal": "Beef"
+      },
+      "table": "Table 2"
+    },
+    {
+      "id": "6674f6cf-e803-4a92-9e0a-f251ade3bbff",
+      "name": "Damilola Adeyemi",
+      "extra": {
+        "meal": "Vegetarian"
+      },
+      "table": "Table 2"
+    },
+    {
+      "id": "ae1c9811-796f-4d2d-b853-a9de5d526e34",
+      "name": "Emeka Obi",
+      "extra": {
+        "meal": "Fish"
+      },
+      "table": "VIP-A"
+    },
+    {
+      "id": "8c13a721-6487-4c36-8ce2-40304e1cba0f",
+      "name": "Folake Balogun",
+      "extra": {},
+      "table": "Table 3"
+    },
+    {
+      "id": "b91152e2-0d7e-4bc2-b4a2-5e663475d7a6",
+      "name": "Grace Mensah",
+      "extra": {
+        "meal": "Beef"
+      },
+      "table": "Table 3"
+    },
+    {
+      "id": "c0782ffc-c48d-4276-9ed6-6c6453292e10",
+      "name": "Hakeem Yusuf",
+      "extra": {},
+      "table": null
+    },
+    {
+      "id": "aa11bb22-cc33-4d44-8e55-ff6677889900",
+      "name": "Olamide Bakare",
+      "extra": {
+        "meal": "Beef"
+      },
+      "table": "Table 3"
+    }
+  ],
+  "branding": {
+    "font": "inter",
+    "header_text": "Demo Gala 2026",
+    "accent_color": "#f0b429",
+    "no_match_text": "We could not find that name \u2014 please see a host.",
+    "primary_color": "#1f6feb",
+    "subtitle_text": "Find your table",
+    "reveal_tagline": "We cannot wait to celebrate with you!",
+    "background_color": "#0b0d12",
+    "search_placeholder": "Start typing your name",
+    "extra_labels": {
+      "meal": "Meal choice"
+    }
+  },
+  "synced_at": "2026-09-02T22:30:21.231482+00:00"
+}

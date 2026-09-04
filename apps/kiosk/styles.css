@@ -310,6 +310,14 @@ body {
   gap: 1.2cqmin;
 }
 
+/* Set by the app while there is more list below the fold. A kiosk shows no
+   scrollbar, so without this a row cut in half by the edge of the band reads
+   as a rendering fault rather than an invitation to scroll. */
+.results[data-more] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 7cqmin), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 7cqmin), transparent);
+}
+
 .result {
   flex: none;
   display: flex;

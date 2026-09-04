@@ -46,6 +46,14 @@ begin
   assert v_payload::text not like '%800 000%',
     'SECURITY: hidden field values must never be served';
 
+  -- The organiser names each visible column in the Control Center. Without
+  -- these the kiosk falls back to the raw CSV header and the reveal screen
+  -- reads "meal Fish" instead of "Meal choice Fish".
+  assert v_payload #>> '{branding,extra_labels,meal}' = 'Meal choice',
+    'a visible field must carry its label to the kiosk';
+  assert not ((v_payload #> '{branding,extra_labels}') ? 'phone'),
+    'SECURITY: a hidden field must not leak its label either';
+
   -- Admin-only columns must not ride along in the public payload.
   assert not (v_payload ? 'extra_field_schema'), 'extra_field_schema is admin-only';
   assert not (v_payload ? 'table_count'),        'table_count is admin-only';

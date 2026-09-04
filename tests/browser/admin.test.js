@@ -5,9 +5,10 @@ const BASE = process.env.MV_TEST_BASE || 'http://127.0.0.1:8897';
 const ADMIN = BASE + '/admin/';
 
 let passed = 0;
+let failed = 0;
 async function check(name, fn) {
   try { await fn(); console.log('  ok   ' + name); passed++; }
-  catch (e) { console.log('  FAIL ' + name + '\n       ' + (e.message || '').split('\n')[0]); process.exitCode = 1; }
+  catch (e) { console.log('  FAIL ' + name + '\n       ' + (e.message || '').split('\n')[0]); failed++; process.exitCode = 1; }
 }
 const db = async () => (await fetch(BASE + '/__db')).json();
 
@@ -394,5 +395,7 @@ const db = async () => (await fetch(BASE + '/__db')).json();
   });
 
   await browser.close();
-  console.log(`\n${passed} checks passed.`);
+  // Reporting a pass count alone once let a red run read as green.
+  if (failed) console.log(`\n${passed} passed, ${failed} FAILED.`);
+  else console.log(`\n${passed} checks passed.`);
 })();
