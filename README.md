@@ -60,6 +60,29 @@ design: the key identifies the project and authorises nothing on its own.
 | `/e/{event-slug}?k=main` | Same page and data; the tag only separates entrances in analytics |
 | `/admin` | The Control Center |
 
+## Releasing
+
+`main` is the production branch: merging to it publishes
+`https://kiosk.mediavaccine.com` within about a minute. Nothing else deploys
+there, and pushing straight to `main` is blocked — changes arrive by pull
+request or not at all.
+
+A pull request cannot be merged until all five of these are green:
+
+| Check | What it proves |
+| --- | --- |
+| `netlify/kioskseatingchart/deploy-preview` | The site built, and there is a preview URL to look at before it reaches a room |
+| `Database schema and policies` | The migrations apply from scratch and the access guarantees still hold |
+| `Kiosk and Control Center` | Both browser suites pass against a mock of Supabase |
+| `Shared logic` | The CSV and table-assignment units pass |
+| `Build output` | `dist/` contains everything the deploy needs |
+
+The branch must also be up to date with `main` before merging, so a pull
+request cannot go green against a stale base and then break production.
+
+Open the deploy preview and look at it. The suites cannot tell you whether a
+screen reads well from across a room.
+
 ## Documentation
 
 - [`apps/kiosk/README.md`](apps/kiosk/README.md) — how the kiosk behaves, and the traps worth knowing before editing it
