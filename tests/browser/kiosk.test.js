@@ -93,6 +93,34 @@ async function enterSearch(page) {
   await check('on-screen keyboard rendered', async () => {
     assert.equal(await page.locator('.key').count(), 26 + 3);
   });
+  // A totem is roughly two metres tall and gets cast onto tall displays, so
+  // keys pinned to the bottom of the frame sit near knee height and make
+  // guests stoop. They belong in the middle band, and they must not drift as
+  // matches appear — a key that moves under a finger gets mis-tapped.
+  await check('the keys sit in the reachable middle and never move', async () => {
+    await enterSearch(page);
+    const where = () => page.evaluate(() => {
+      const stage = document.querySelector('.stage').getBoundingClientRect();
+      const keys = document.querySelector('.keyboard').getBoundingClientRect();
+      return {
+        top: ((keys.top - stage.top) / stage.height) * 100,
+        bottom: ((keys.bottom - stage.top) / stage.height) * 100,
+      };
+    });
+
+    const idle = await where();
+    assert.ok(idle.bottom < 85, `keys reach ${idle.bottom.toFixed(1)}% down the stage`);
+    assert.ok(idle.top > 35, `keys start ${idle.top.toFixed(1)}% down the stage`);
+
+    for (const k of ['A', 'D']) await page.click(`.key:text-is("${k}")`);
+    await page.waitForSelector('.result');
+    const matching = await where();
+    assert.equal(matching.top.toFixed(1), idle.top.toFixed(1));
+
+    await page.click('.key:text-is("Clear")');
+    const cleared = await where();
+    assert.equal(cleared.top.toFixed(1), idle.top.toFixed(1));
+  });
 
   console.log('\nSearch');
   await check('tapping keys filters the list', async () => {
