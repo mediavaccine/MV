@@ -142,6 +142,15 @@ body {
 .screen--welcome { justify-content: center; gap: 3cqmin; }
 .screen--reveal { justify-content: center; gap: 2.2cqmin; }
 
+/* Search centres its whole group rather than pinning the keyboard to the floor.
+   On a totem or a cast display the bottom of the frame is around knee height,
+   and a guest should not have to stoop to reach a key. Everything the guest
+   touches therefore sits in the middle band of the stage. */
+.screen--search { justify-content: center; }
+.screen--search > .masthead,
+.screen--search > .field,
+.screen--search > .keyboard { flex: none; }
+
 /* --- Type ---------------------------------------------------------------- */
 
 .kicker {
@@ -279,9 +288,20 @@ body {
 .caret { width: 2px; height: 1.05em; margin-left: .12em; background: var(--gold); animation: blink 1.1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
 
+/* One band holds the results and the no-match line stacked in the same cell.
+   Its height is a fixed basis rather than the leftover space, so the keys stay
+   put whether nobody, one guest or twenty match what has been typed. It may
+   still shrink on a short landscape stage, where the leftover space runs out. */
+.band {
+  flex: 0 1 26cqmin;
+  min-height: 12cqmin;
+  width: 100%;
+  display: grid;
+  grid-template-areas: "band";
+}
+.band > * { grid-area: band; min-height: 0; }
+
 .results {
-  flex: 1;
-  min-height: 0;
   width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -291,6 +311,7 @@ body {
 }
 
 .result {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -311,7 +332,13 @@ body {
 .result-name mark { background: transparent; color: var(--gold); }
 .result-hint { color: var(--muted); font-size: 2.2cqmin; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 
-.no-match { margin: 0; padding: 2cqmin; color: var(--muted); font-size: 2.8cqmin; }
+.no-match {
+  margin: 0;
+  padding: 2cqmin;
+  align-self: center;
+  color: var(--muted);
+  font-size: 2.8cqmin;
+}
 
 /* --- Keyboard ------------------------------------------------------------ */
 

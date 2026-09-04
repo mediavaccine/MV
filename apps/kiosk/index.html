@@ -57,8 +57,13 @@
           <span class="caret" aria-hidden="true"></span>
         </div>
 
-        <div class="results" id="results" role="listbox" aria-label="Matching guests"></div>
-        <p class="no-match" id="no-match" hidden></p>
+        <!-- Results and the no-match line share one fixed band, so the keyboard
+             below never shifts under a guest's finger as matches come and go. -->
+        <div class="band">
+          <div class="results" id="results" role="listbox" aria-label="Matching guests"></div>
+          <p class="no-match" id="no-match" hidden></p>
+        </div>
+
         <div class="keyboard" id="keyboard" aria-label="On-screen keyboard"></div>
       </section>
 
